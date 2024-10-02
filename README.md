@@ -9,6 +9,9 @@ It has been tested on tabletop scenes for robot manipulation and small rooms for
 - [CuPy](https://cupy.dev/) (check the installation guide on the official website)
 - [Open3D](https://github.com/isl-org/Open3D) (pip install open3d)
 - [cupoch](https://github.com/neka-nat/cupoch) (pip install cupoch)
+- OpenCV(pip install opencv-python)
+- skimage(pip install scikit-image)
+- numba(pip install numba)
   
 
 ## Usage
