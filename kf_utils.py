@@ -57,21 +57,47 @@ def create_pcd(depth_im: np.ndarray,
                depth_scale: float = 1,
                depth_trunc: float = 1.5,
                cam_extr: np.ndarray = np.eye(4)):
-    intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic()
-    intrinsic_o3d.intrinsic_matrix = cam_intr
-    depth_im_o3d = o3d.geometry.Image(depth_im)
-    if color_im is not None:
-        color_im_o3d = o3d.geometry.Image(color_im)
-        rgbd = o3d.geometry.RGBDImage().create_from_color_and_depth(color_im_o3d, depth_im_o3d,
+    
+    #print('call create pcd!!')
+    try:
+        intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic()
+        #fx, fy = cam_intr[0, 0], cam_intr[1, 1]
+        #cx, cy = cam_intr[0, 2], cam_intr[1, 2]
+        #width, height = depth_im.shape[1], depth_im.shape[0]
+        #intrinsic_o3d = o3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
+        #print(1)
+        #print(f'intrinsics_o3d: {intrinsic_o3d}')
+        #print(f'cam_intr: {cam_intr}')
+        intrinsic_o3d.intrinsic_matrix = cam_intr
+        #cam_intr_tensor = o3d.core.Tensor(cam_intr, dtype=o3d.core.Dtype.Float64)
+        #print(1.5)
+        #intrinsic_o3d.intrinsic_matrix = cam_intr_tensor
+        #print(f'intrinsic_matrix: {intrinsic_o3d.intrinsic_matrix}')
+        #print(2)
+        #print(depth_im)
+        #print('???')
+        depth_im_o3d = o3d.geometry.Image(depth_im)
+        #print(3)
+        if color_im is not None:
+            color_im_o3d = o3d.geometry.Image(color_im)
+            #print(4)
+            rgbd = o3d.geometry.RGBDImage().create_from_color_and_depth(color_im_o3d, depth_im_o3d,
                                                                     depth_scale=depth_scale,
                                                                     depth_trunc=depth_trunc,
                                                                     convert_rgb_to_intensity=False)
-        pcd = o3d.geometry.PointCloud().create_from_rgbd_image(rgbd, intrinsic_o3d, extrinsic=cam_extr)
-    else:
-        pcd = o3d.geometry.PointCloud().create_from_depth_image(depth_im_o3d, intrinsic_o3d,
+            #print(5)
+            #print(f'cam_extr: {cam_extr}')
+            pcd = o3d.geometry.PointCloud().create_from_rgbd_image(rgbd, intrinsic_o3d, extrinsic=cam_extr)
+            #print(6)
+        else:
+            pcd = o3d.geometry.PointCloud().create_from_depth_image(depth_im_o3d, intrinsic_o3d,
                                                                 extrinsic=cam_extr,
                                                                 depth_scale=depth_scale,
                                                                 depth_trunc=depth_trunc)
+            #print(7)
+    except Exception as e:
+        print('error!! {e}')
+
     return pcd
 
 

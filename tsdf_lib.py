@@ -15,6 +15,13 @@ class TSDFVolume:
             vol_bnds (ndarray): An ndarray of shape (3, 2). Specifies the xyz bounds (min/max) in meters.
             voxel_size (float): The volume discretization in meters.
         """
+    
+        print('Init TSDF Volume')
+        print(f'vol_dim: {vol_dim}')
+        print(f'vol_origin: {vol_origin}')
+        print(f'vol_bnds: {vol_bnds}')
+        print(f'voxel_size: {voxel_size}')
+
         if vol_dim is not None and vol_origin is not None:
             self._vol_dim = vol_dim
             self._vol_origin = vol_origin
@@ -172,7 +179,7 @@ class TSDFVolume:
         surface_cloud.colors = o3d.utility.Vector3dVector(colors / 255)
         surface_cloud.normals = o3d.utility.Vector3dVector(normals)
         return surface_cloud
-
+    
     def get_conservative_volume(self, voxel_size=0.01):
         tsdf_vol, _, _ = self.get_volume()
         verts = np.vstack(np.where(tsdf_vol < -0.2)).T

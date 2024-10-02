@@ -114,7 +114,7 @@ def visualization_process(tsdf_shm_name, color_shm_name, weight_shm_name, cam_po
     weight_vol_shared = np.ndarray((x_dim, y_dim, z_dim), dtype=np.float32, buffer=weight_shm.buf)
 
      # cam_poses 및 개수 배열에 연결
-    max_cam_poses = 1000  # main.py에서 설정한 최대 카메라 프레임 수
+    max_cam_poses = 2000  # main.py에서 설정한 최대 카메라 프레임 수
     cam_poses_shared = np.ndarray((max_cam_poses, 4, 4), dtype=np.float32, buffer=cam_pose_shm.buf)
     cam_poses_count = np.ndarray(1, dtype=np.int32, buffer=cam_poses_count_shm.buf)
 
@@ -162,7 +162,7 @@ def visualization_process(tsdf_shm_name, color_shm_name, weight_shm_name, cam_po
         #event.wait()  # 이벤트가 설정될 때까지 대기
         #event.clear()
 
-        print('get event!')
+        #print('get event!')
 
         # reshape 먼저 수행한 후 transpose 적용
         #tsdf_vol = tsdf_vol_shared.reshape((z_dim, y_dim, x_dim)).transpose(2, 1, 0)
@@ -189,7 +189,7 @@ def visualization_process(tsdf_shm_name, color_shm_name, weight_shm_name, cam_po
 
         # cam_poses 개수를 확인하고 업데이트
         current_cam_poses = cam_poses_count[0]
-        print(f'shared cam poses: {current_cam_poses}')
+        #print(f'shared cam poses: {current_cam_poses}')
         if current_cam_poses > 0:
             cam_frame_size = 0.1
             points = []
@@ -213,11 +213,11 @@ def visualization_process(tsdf_shm_name, color_shm_name, weight_shm_name, cam_po
 
 def show_image(color_im, depth_im):
     color_im_bgr = color_im[:, :, [2,1,0]]
-    print(f'shape: {color_im_bgr.shape}')
+    #print(f'shape: {color_im_bgr.shape}')
 
     depth_min = depth_im.min()
     depth_max = depth_im.max()
-    print(f'depth min: {depth_min}m, depth_max: {depth_max}m')
+    #print(f'depth min: {depth_min}m, depth_max: {depth_max}m')
 
     depth_im_normalized = (depth_im - depth_min) / (depth_max - depth_min)  # 0 ~ 1로 정규화
     depth_im_normalized = (depth_im_normalized * 255).astype(np.uint8)
@@ -227,6 +227,71 @@ def show_image(color_im, depth_im):
     cv2.imshow('color & depth image', combined_im)
 
     cv2.waitKey(1)
+
+
+def extract_timestamp(file_path):
+    """
+    파일 경로에서 타임스탬프를 추출하여 실수형으로 반환합니다.
+    예: '/path/to/rgb/1311875744.828744.png' -> 1311875744.828744
+    """
+    filename = os.path.basename(file_path)
+    timestamp_str = os.path.splitext(filename)[0]
+    try:
+        return float(timestamp_str)
+    except ValueError:
+        raise ValueError(f"파일명에서 타임스탬프를 추출할 수 없습니다: {file_path}")
+
+
+def match_rgb_depth(rgb_list, depth_list, max_time_diff=0.05):
+    """
+    RGB 리스트와 Depth 리스트를 타임스탬프 기준으로 매칭합니다.
+    - rgb_list: RGB 이미지의 전체 경로 리스트 (정렬된 상태)
+    - depth_list: Depth 이미지의 전체 경로 리스트 (정렬된 상태)
+    - max_time_diff: 매칭 허용 최대 시간 차이 (초)
+
+    반환값:
+    - matched_pairs: [(rgb_path, depth_path), ...] 형태의 리스트
+    """
+    # 작은 리스트와 큰 리스트 결정
+    if len(rgb_list) <= len(depth_list):
+        small, large = rgb_list, depth_list
+    else:
+        small, large = depth_list, rgb_list
+
+    # 타임스탬프 추출
+    small_times = [extract_timestamp(f) for f in small]
+    large_times = [extract_timestamp(f) for f in large]
+
+    matched_pairs = []
+    used = set()
+    j = 0  # 큰 리스트의 인덱스
+
+    for st, sf in zip(small_times, small):
+        # 큰 리스트에서 st에 가장 가까운 위치 찾기
+        while j < len(large_times) and large_times[j] < st:
+            j += 1
+
+        candidates = []
+        if j < len(large_times):
+            candidates.append(j)
+        if j > 0:
+            candidates.append(j - 1)
+
+        closest = -1
+        min_diff = float('inf')
+
+        for c in candidates:
+            if c not in used:
+                diff = abs(st - large_times[c])
+                if diff < min_diff:
+                    min_diff = diff
+                    closest = c
+
+        if closest != -1 and min_diff <= max_time_diff:
+            matched_pairs.append((sf, large[closest]))
+            used.add(closest)
+
+    return matched_pairs
 
 
 def main():
@@ -242,16 +307,26 @@ def main():
     args = parser.parse_args()
 
     dataset = Path(args.dataset).expanduser()
-    video_folder = dataset / args.video
-    color_folder = video_folder / 'color'
-    if not os.path.isdir(color_folder):
-        print(f"{color_folder} doesn't exist.")
-        exit(1)
+    video_folder = dataset
+    #color_folder = video_folder / 'color'
+    #if not os.path.isdir(color_folder):
+    #    print(f"{color_folder} doesn't exist.")
+    #    exit(1)
 
-    color_files = sorted(os.listdir(color_folder))
-    if args.end_frame == -1:
-        args.end_frame = len(color_files)
-    color_files = color_files[args.start_frame:args.end_frame]
+    #color_files = sorted(os.listdir(color_folder))
+    #if args.end_frame == -1:
+    #    args.end_frame = len(color_files)
+    #color_files = color_files[args.start_frame:args.end_frame]
+
+    stride = 1
+
+    rgbdir = os.path.join(video_folder, 'rgb')
+    depthdir = os.path.join(video_folder, 'depth')
+
+    rgb_list = sorted(os.listdir(rgbdir))[::stride]
+    depth_list = sorted(os.listdir(depthdir))[::stride]
+
+    matched_pairs = match_rgb_depth(rgb_list, depth_list, max_time_diff=1.00)
 
     data_cfg_path = video_folder / 'config.json'
     with open(data_cfg_path, 'r') as f:
@@ -267,19 +342,29 @@ def main():
     cfg['cam_intr'] = cfg['cam_intr'] / resolution_down_scale
     cfg['cam_intr'][2,2] = 1.0
 
+    cfg['bound_dx'] = [-1.0, 1.0]
+    cfg['bound_dy'] = [-1.0, 1.0]
+    cfg['bound_z'] = [-0.5, 0.5]
+
     pprint(cfg)
     
     kf = KinectFusion(cfg=cfg)
 
     #print(f'kf = {kf}')
 
-    color_im_path = str(video_folder / 'color' / f'{color_files[0]}')
-    prefix = color_files[0].split('-')[0]
-    depth_im_path = str(video_folder / 'depth' / f'{prefix}-depth.png')
-    color_im = cv2.cvtColor(cv2.imread(color_im_path), cv2.COLOR_BGR2RGB)
-    depth_im = cv2.imread(depth_im_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale']
-    depth_im[depth_im > args.depth_trunc] = 0
+    #color_im_path = str(video_folder / 'color' / f'{color_files[0]}')
+    #prefix = color_files[0].split('-')[0]
+    #depth_im_path = str(video_folder / 'depth' / f'{prefix}-depth.png')
+    #color_im = cv2.cvtColor(cv2.imread(color_im_path), cv2.COLOR_BGR2RGB)
+    #depth_im = cv2.imread(depth_im_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale']
+    #depth_im[depth_im > args.depth_trunc] = 0
     
+    dfile, imfile = matched_pairs[0]
+    color_im = cv2.imread(os.path.join(rgbdir, imfile))
+    color_im = cv2.cvtColor(color_im, cv2.COLOR_BGR2RGB)
+    depth_im = cv2.imread(os.path.join(depthdir, dfile), cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale'] / 4
+    depth_im[depth_im > args.depth_trunc] = 0
+
     color_im = cv2.resize(color_im, (cfg['im_w'], cfg['im_h']))
     depth_im = cv2.resize(depth_im, (cfg['im_w'], cfg['im_h']))
         
@@ -350,14 +435,19 @@ def main():
     n = 10  # 원하는 업데이트 간격으로 설정하세요
 
     # Update TSDF volume
-    for color_file in tqdm(color_files[1:]):
-        color_im_path = str(video_folder / 'color' / f'{color_file}')
-        print(f'read color im path: {color_im_path}')
-        prefix = color_file.split('-')[0]
-        depth_im_path = str(video_folder / 'depth' / f'{prefix}-depth.png')
-        print(f'read depth im path: {depth_im_path}')
-        color_im = cv2.cvtColor(cv2.imread(color_im_path), cv2.COLOR_BGR2RGB)
-        depth_im = cv2.imread(depth_im_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale']
+    #for color_file in tqdm(color_files[1:]):
+    for (dfile, imfile) in tqdm(matched_pairs[1:]):
+
+        #color_im_path = str(video_folder / 'color' / f'{color_file}')
+        #print(f'read color im path: {color_im_path}')
+        #prefix = color_file.split('-')[0]
+        #depth_im_path = str(video_folder / 'depth' / f'{prefix}-depth.png')
+        #print(f'read depth im path: {depth_im_path}')
+        #color_im = cv2.cvtColor(cv2.imread(color_im_path), cv2.COLOR_BGR2RGB)
+        #depth_im = cv2.imread(depth_im_path, cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale']
+        color_im = cv2.imread(os.path.join(rgbdir, imfile))
+        color_im = cv2.cvtColor(color_im, cv2.COLOR_BGR2RGB)
+        depth_im = cv2.imread(os.path.join(depthdir, dfile), cv2.IMREAD_UNCHANGED).astype(np.float32) / cfg['depth_scale'] / 4
         depth_im[depth_im > args.depth_trunc] = 0
         
         color_im = cv2.resize(color_im, (cfg['im_w'], cfg['im_h']))
@@ -406,14 +496,14 @@ def main():
 
         # cam_poses를 공유 메모리에 복사 (최대 max_cam_poses 크기 내에서)
         current_cam_poses = len(kf.cam_poses)
-        print(f'current cam poses: {current_cam_poses}')
+        #print(f'current cam poses: {current_cam_poses}')
         if current_cam_poses <= max_cam_poses:
             np.copyto(cam_poses_shared[:current_cam_poses], kf.cam_poses)
 
         # 현재 사용 중인 cam_poses 개수를 저장
         cam_poses_count[0] = current_cam_poses
 
-        print('set event!')
+        #print('set event!')
         # 이벤트 신호를 통해 시각화 프로세스에 데이터 업데이트 알림
         event.set()
         #if not kf.update(color_im, depth_im):
