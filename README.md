@@ -5,9 +5,11 @@ It has been tested on tabletop scenes for robot manipulation and small rooms for
 
 ## Dependencies
 - Python >= 3.10
+- Numpy == 1.26.4
 - [CuPy](https://cupy.dev/) (check the installation guide on the official website)
 - [Open3D](https://github.com/isl-org/Open3D) (pip install open3d)
 - [cupoch](https://github.com/neka-nat/cupoch) (pip install cupoch)
+  
 
 ## Usage
 ```
